@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IntelliFlow Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; min-height: 100vh; }
+  
+  .header { padding: 16px 24px; background: #fff; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 18px; font-weight: 600; color: #111; }
+  .header .notif-badge { background: #e8e8e8; color: #333; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+  .header .notif-badge:hover { background: #d8d8d8; }
+  
+  .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; padding: 20px 24px; }
+  .stat-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; }
+  .stat-card .label { font-size: 12px; color: #777; margin-bottom: 6px; }
+  .stat-card .value { font-size: 28px; font-weight: 600; }
+  .stat-card.completed .value { color: #2e7d32; }
+  .stat-card.review .value { color: #e65100; }
+  .stat-card.failed .value { color: #c62828; }
+  .stat-card.total .value { color: #111; }
+  .stat-card.confidence .value { color: #1565c0; }
+  
+  .main { padding: 0 24px 24px; display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
+  
+  .docs-section h2, .detail-section h2 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #111; }
+  
+  .upload-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+  .upload-bar input[type="file"] { display: none; }
+  .upload-btn { background: #111; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer; font-family: inherit; font-size: 13px; }
+  .upload-btn:hover { background: #333; }
+  .upload-btn.secondary { background: #fff; border: 1px solid #ccc; color: #333; }
+  .upload-btn.secondary:hover { border-color: #999; }
+  
+  .doc-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden; }
+  .doc-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #777; padding: 10px 14px; border-bottom: 1px solid #e0e0e0; background: #fafafa; }
+  .doc-table td { padding: 12px 14px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  .doc-table tr { cursor: pointer; transition: background 0.1s; }
+  .doc-table tr:hover { background: #f8f8f8; }
+  .doc-table tr.active { background: #f0f4ff; }
+  
+  .status { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.3px; }
+  .status.COMPLETED { background: #e8f5e9; color: #2e7d32; }
+  .status.NEEDS_REVIEW { background: #fff3e0; color: #e65100; }
+  .status.FAILED { background: #ffebee; color: #c62828; }
+  .status.PROCESSING, .status.EXTRACTED, .status.UPLOADED { background: #e3f2fd; color: #1565c0; }
+  .status.VALIDATED { background: #f3e5f5; color: #6a1b9a; }
+  
+  .detail-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px; max-height: 80vh; overflow-y: auto; }
+  .detail-section .field { margin-bottom: 14px; }
+  .detail-section .field-label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .detail-section .field-value { font-size: 13px; font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; color: #444; word-break: break-all; }
+  
+  .audit-list { list-style: none; }
+  .audit-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; display: flex; gap: 10px; align-items: flex-start; }
+  .audit-dot { width: 7px; height: 7px; border-radius: 50%; background: #1565c0; margin-top: 5px; flex-shrink: 0; }
+  .audit-dot.AGENT { background: #6a1b9a; }
+  .audit-dot.HUMAN_REVIEWER { background: #e65100; }
+  .audit-action { font-size: 13px; font-weight: 500; color: #333; }
+  .audit-detail { font-size: 12px; color: #777; margin-top: 2px; }
+  .audit-time { font-size: 11px; color: #999; font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; }
+  
+  .review-actions { display: flex; gap: 8px; margin-top: 14px; }
+  .approve-btn { background: #2e7d32; color: #fff; border: none; padding: 7px 14px; border-radius: 4px; font-weight: 500; cursor: pointer; font-family: inherit; font-size: 13px; }
+  .approve-btn:hover { background: #1b5e20; }
+  .reject-btn { background: #c62828; color: #fff; border: none; padding: 7px 14px; border-radius: 4px; font-weight: 500; cursor: pointer; font-family: inherit; font-size: 13px; }
+  .reject-btn:hover { background: #b71c1c; }
+  
+  .json-preview { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 4px; padding: 14px; font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 11px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; color: #555; }
+  
+  .empty { color: #999; font-style: italic; padding: 40px; text-align: center; }
+  
+  .tabs { display: flex; gap: 0; margin-bottom: 14px; border-bottom: 1px solid #e0e0e0; }
+  .tab { padding: 7px 14px; font-size: 13px; color: #777; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.1s; }
+  .tab.active { color: #111; border-bottom-color: #111; }
+  .tab:hover { color: #333; }
+
+  @media (max-width: 900px) {
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .main { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Intelli<span>Flow</span></h1>
+  <div>
+    <span class="notif-badge" id="notifBadge" onclick="showNotifications()">0 notifications</span>
+  </div>
+</div>
+
+<div class="stats-row" id="statsRow">
+  <div class="stat-card total"><div class="label">Total</div><div class="value" id="statTotal">-</div></div>
+  <div class="stat-card completed"><div class="label">Completed</div><div class="value" id="statCompleted">-</div></div>
+  <div class="stat-card review"><div class="label">Needs Review</div><div class="value" id="statReview">-</div></div>
+  <div class="stat-card failed"><div class="label">Failed</div><div class="value" id="statFailed">-</div></div>
+  <div class="stat-card confidence"><div class="label">Avg Confidence</div><div class="value" id="statConfidence">-</div></div>
+</div>
+
+<div class="main">
+  <div class="docs-section">
+    <h2>Documents</h2>
+    <div class="upload-bar">
+      <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.tiff">
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Upload Document</button>
+      <button class="upload-btn secondary" onclick="loadAll()">Refresh</button>
+    </div>
+    <table class="doc-table">
+      <thead><tr><th>ID</th><th>File Name</th><th>Status</th><th>Confidence</th><th>Uploaded</th></tr></thead>
+      <tbody id="docTableBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="detail-section" id="detailPanel">
+    <h2>Document Details</h2>
+    <p class="empty">Select a document to view details</p>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8080/api';
+let selectedDocId = null;
+
+async function loadStats() {
+  try {
+    const res = await fetch(API + '/stats');
+    const s = await res.json();
+    document.getElementById('statTotal').textContent = s.total_documents;
+    document.getElementById('statCompleted').textContent = s.completed;
+    document.getElementById('statReview').textContent = s.needs_review;
+    document.getElementById('statFailed').textContent = s.failed;
+    document.getElementById('statConfidence').textContent = (s.average_confidence * 100).toFixed(0) + '%';
+    document.getElementById('notifBadge').textContent = s.unread_notifications + ' notifications';
+  } catch(e) { console.error('Stats error:', e); }
+}
+
+async function loadDocuments() {
+  try {
+    const res = await fetch(API + '/documents');
+    const docs = await res.json();
+    const tbody = document.getElementById('docTableBody');
+    if (!docs.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No documents yet. Upload one!</td></tr>'; return; }
+    tbody.innerHTML = docs.map(d => `
+      <tr class="${d.id === selectedDocId ? 'active' : ''}" onclick="selectDoc(${d.id})">
+        <td>#${d.id}</td>
+        <td>${d.fileName}</td>
+        <td><span class="status ${d.status}">${d.status}</span></td>
+        <td>${d.confidenceScore ? (d.confidenceScore * 100).toFixed(0) + '%' : '—'}</td>
+        <td>${new Date(d.uploadedAt).toLocaleString()}</td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error('Docs error:', e); }
+}
+
+async function selectDoc(id) {
+  selectedDocId = id;
+  loadDocuments();
+  try {
+    const [docRes, auditRes] = await Promise.all([
+      fetch(API + '/documents/' + id),
+      fetch(API + '/documents/' + id + '/audit')
+    ]);
+    const doc = await docRes.json();
+    const audit = await auditRes.json();
+    
+    let extractedHtml = '';
+    if (doc.extractedData) {
+      try { extractedHtml = `<div class="json-preview">${JSON.stringify(JSON.parse(doc.extractedData), null, 2)}</div>`; }
+      catch(e) { extractedHtml = `<div class="json-preview">${doc.extractedData}</div>`; }
+    } else { extractedHtml = '<span style="color:#4a4a5e">Not yet extracted</span>'; }
+
+    let reviewBtns = '';
+    if (doc.status === 'NEEDS_REVIEW') {
+      reviewBtns = `<div class="review-actions">
+        <button class="approve-btn" onclick="approveDoc(${id})">Approve</button>
+        <button class="reject-btn" onclick="rejectDoc(${id})">Reject</button>
+      </div>`;
+    }
+
+    let auditHtml = audit.map(a => `
+      <li class="audit-item">
+        <div class="audit-dot ${a.performedBy}"></div>
+        <div>
+          <div class="audit-action">${a.action.replace(/_/g, ' ')}</div>
+          <div class="audit-detail">${a.details || ''}</div>
+          <div class="audit-time">${new Date(a.timestamp).toLocaleTimeString()}</div>
+        </div>
+      </li>
+    `).join('');
+
+    document.getElementById('detailPanel').innerHTML = `
+      <h2>${doc.fileName}</h2>
+      <div class="field"><div class="field-label">Status</div><div><span class="status ${doc.status}">${doc.status}</span></div></div>
+      <div class="field"><div class="field-label">Confidence</div><div class="field-value">${doc.confidenceScore ? (doc.confidenceScore * 100).toFixed(1) + '%' : '—'}</div></div>
+      <div class="field"><div class="field-label">File Type</div><div class="field-value">${doc.fileType || '—'}</div></div>
+      <div class="field"><div class="field-label">Size</div><div class="field-value">${(doc.fileSize / 1024).toFixed(1)} KB</div></div>
+      ${doc.validationErrors ? `<div class="field"><div class="field-label">Validation</div><div class="json-preview">${doc.validationErrors}</div></div>` : ''}
+      ${reviewBtns}
+      <div class="tabs">
+        <div class="tab active" onclick="showTab(this, 'extractedContent')">Extracted Data</div>
+        <div class="tab" onclick="showTab(this, 'auditContent')">Audit Trail (${audit.length})</div>
+        <div class="tab" onclick="showTab(this, 'rawContent')">Raw Text</div>
+      </div>
+      <div id="extractedContent">${extractedHtml}</div>
+      <div id="auditContent" style="display:none"><ul class="audit-list">${auditHtml}</ul></div>
+      <div id="rawContent" style="display:none"><div class="json-preview">${doc.rawText || 'No text extracted'}</div></div>
+    `;
+  } catch(e) { console.error('Detail error:', e); }
+}
+
+function showTab(el, contentId) {
+  el.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['extractedContent', 'auditContent', 'rawContent'].forEach(id => {
+    const elem = document.getElementById(id);
+    if (elem) elem.style.display = id === contentId ? 'block' : 'none';
+  });
+}
+
+async function approveDoc(id) {
+  await fetch(API + '/documents/' + id + '/approve', { method: 'POST' });
+  loadAll(); selectDoc(id);
+}
+
+async function rejectDoc(id) {
+  const reason = prompt('Rejection reason:');
+  if (!reason) return;
+  await fetch(API + '/documents/' + id + '/reject', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason })
+  });
+  loadAll(); selectDoc(id);
+}
+
+function showNotifications() {
+  fetch(API + '/notifications').then(r => r.json()).then(notifs => {
+    if (!notifs.length) { alert('No notifications'); return; }
+    alert(notifs.map(n => `[${n.type}] Doc #${n.documentId}: ${n.message}`).join('\n'));
+    fetch(API + '/notifications/read', { method: 'POST' });
+    loadStats();
+  });
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  const btn = document.querySelector('.upload-btn');
+  btn.textContent = 'Uploading...';
+  btn.disabled = true;
+  try {
+    await fetch(API + '/documents/upload', { method: 'POST', body: formData });
+    loadAll();
+  } catch(err) { alert('Upload failed: ' + err.message); }
+  btn.textContent = 'Upload Document';
+  btn.disabled = false;
+  e.target.value = '';
+});
+
+function loadAll() { loadStats(); loadDocuments(); }
+loadAll();
+</script>
+</body>
+</html>
